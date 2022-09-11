@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const server = require('http').createServer(app);
 const { verifyToken, verifyTokenAndAuth } = require('./verify');
+const { NotesMail, MedMail } = require('./mail');
 
 const io = require('socket.io')(server, {
 	cors: {
@@ -31,9 +32,14 @@ mongoose
 	});
 
 const User = require('./models/user.js');
+const Notes = require('./models/notes.js');
+const Med = require('./models/med.js');
 // console.log(User);
 
 io.on('connection', (socket) => {
+	socket.on('join-room', async (room) => {
+		socket.join(room);
+	})
 	socket.join(socket.id);
 	socket.on('verifyToken', async ({ token }) => {
 		// console.log('verifyToken: ', token);
@@ -165,8 +171,42 @@ io.on('connection', (socket) => {
 			}
 		}
 	});
+	socket.on('remainder', async ({ user, message, date, time }) => {
+		console.log('remainder');
+		const remainder = new Notes({
+			username: user,
+			message: message,
+			date: date,
+			time: time,
+		});
+		const savedNote = await remainder.save();
+		console.log(savedNote);
+		io.to(socket.id).emit('remainder', {
+			res: true,
+			remainder: savedNote,
+			message: 'remainder added successfully',
+		});
+	});
+	socket.on('med', async ({ user, title, date, time }) => {
+		console.log('med');
+		const med = new Med({
+			username: user,
+			title: title,
+			date: date,
+			time: time,
+		});
+		const savedMed = await med.save();
+		console.log(savedMed);
+		io.to(socket.id).emit('med', {
+			res: true,
+			med: savedMed,
+			message: 'medicine added successfully',
+		});
+	});
 });
 
+NotesMail();
+MedMail();
 server.listen(PORT, () => {
 	console.log(`DEBUG: Server is running at http://localhost:${PORT}`);
 });

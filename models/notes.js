@@ -9,10 +9,14 @@ const NotesSchema = new mongoose.Schema(
 			type: String,
 			default: '',
 		},
-		timeStamp: {
+		date: {
 			type: Date,
 			default: new Date(),
 		},
+		time: {
+			type: String,
+			default: new Date(),
+		}
 	},
 	{
 		timestamps: true,
