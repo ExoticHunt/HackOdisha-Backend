@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-function verifyToken(token) {
+function verifyToken({token, io, socket}) {
 	jwt.verify(token, process.env.JWT_SEC, (err, user) => {
 		if (err) {
 			console.log(`ERROR: ${err}`);

@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { ServerApiVersion } = require('mongodb');
 const CryptoJS = require('crypto-js');
-// const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const app = express();
 const server = require('http').createServer(app);
 const { verifyToken, verifyTokenAndAuth } = require('./verify');
@@ -36,7 +36,7 @@ const User = require('./models/user.js');
 io.on('connection', (socket) => {
 	socket.join(socket.id);
 	socket.on('verifyToken', async ({ token }) => {
-		console.log('verifyToken');
+		// console.log('verifyToken: ', token);
 		if (!token) {
 			io.to(socket.id).emit('verifyToken', {
 				res: false,
@@ -44,20 +44,23 @@ io.on('connection', (socket) => {
 				message: 'login first',
 			});
 		} else {
-			const user = await verifyToken(token);
-			if (user) {
-				io.to(socket.id).emit('verifyToken', {
-					res: true,
-					user: user,
-					error: '',
-				});
-			} else {
+			const user = verifyToken({ token, io, socket });
+			if (user === null) {
+				console.log('token is invalid');
 				io.to(socket.id).emit('verifyToken', {
 					res: false,
 					user: null,
-					message: 'in valid token',
+					message: 'In valid Token',
+				});
+			} else {
+				console.log('token is valid');
+				io.to(socket.id).emit('verifyToken', {
+					res: true,
+					user: user,
+					message: 'Token Validation Successful',
 				});
 			}
+			// console.log('USER: ', user);
 		}
 	});
 	socket.on('register', async ({ username, email, password }) => {
@@ -89,10 +92,19 @@ io.on('connection', (socket) => {
 				try {
 					const savedUser = await newUser.save();
 					console.log(savedUser);
+					const accessToken = jwt.sign(
+						{
+							id: user._id,
+							isAdmin: user.isAdmin,
+						},
+						process.env.JWT_SEC,
+						{ expiresIn: '3d' },
+					);
 					io.to(socket.id).emit('register', {
 						res: true,
 						user: savedUser,
 						message: 'User created successfully!',
+						token: accessToken,
 					});
 				} catch (err) {
 					io.to(socket.id).emit('register', {
@@ -135,9 +147,18 @@ io.on('connection', (socket) => {
 						message: 'wrong credentials!',
 					});
 				} else {
+					const accessToken = jwt.sign(
+						{
+							id: user._id,
+							isAdmin: user.isAdmin,
+						},
+						process.env.JWT_SEC,
+						{ expiresIn: '3d' },
+					);
 					io.to(socket.id).emit('login', {
 						res: true,
 						user: user,
+						token: accessToken,
 						message: 'login successful',
 					});
 				}
